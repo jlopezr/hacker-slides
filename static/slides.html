@@ -53,11 +53,14 @@
               // Full list of configuration options available at:
               // https://github.com/hakimel/reveal.js#configuration
               Reveal.initialize({
+                  width: 1000,
+                  height: 1000,
                   controls: true,
                   progress: true,
                   history: true,
                   center: true,
-                  transition: 'slide', // none/fade/slide/convex/concave/zoom
+                  slideNumber: true,
+                  transition: 'convex', // none/fade/slide/convex/concave/zoom
                   transitionSpeed: isPreview() ? 'fast' : 'default',
                   embedded: isPreview() ? true : false,
 
@@ -82,6 +85,7 @@
               });
 
               $('.slides').html(markdownReference);
+              $('.slides').append('<section><pre><code></code>THIS ENABLES SYNTAX HIGHLIGHT</pre></code></section>');
             }
 
             function reloadMarkdown() {
