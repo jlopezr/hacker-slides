@@ -143,7 +143,20 @@ alt="IMAGE ALT TEXT HERE" border="10" /></a>
 
 * Spanish keyboard 
     * System Settings > Keyboard Layout > Layouts > Spanish
-    
+
+* Install your favourite editor
+```
+apt get install vim
+```
+```
+apt get install eclipse
+```
+```
+sudo add-apt-repository ppa:webupd8team/sublime-text-3
+sudo apt-get update
+sudo apt-get install sublime-text-installer
+```
+
 * Add include directories to Eclipse
     * /usr/local/avr/include
     * /home/user/CodeSourcery/SourceryG++Lite/arm-none-eabi/include
@@ -169,6 +182,7 @@ The [Kon-Tiki raft](http://en.wikipedia.org/wiki/Kon-Tiki) sailed across the Pac
 
 ![Kon-Tiki](Kon-Tiki.jpg)
 
+---
 ## Targets
 
 - Small embedded processors with
@@ -207,9 +221,9 @@ RAM
     - Sequential code
 
 ---
-## Example
+## uIP Example
 
-````
+```c
 int smtp_protothread(struct psock *s)
 {
     PSOCK_BEGIN(s);
@@ -219,9 +233,9 @@ int smtp_protothread(struct psock *s)
     PSOCK_EXIT(s);
 }
 
-PSOCK_SEND(s, “HELO ”, 5);
+PSOCK_SEND(s, "HELO ", 5);
 PSOCK_SEND(s, hostname, strlen(hostname));
-PSOCK_SEND(s, “\r\n”, 2);
+PSOCK_SEND(s, "\r\n", 2);
 PSOCK_READTO(s, '\n');
 if(inputbuffer[0] != '2') {
     PSOCK_CLOSE(s);
@@ -246,22 +260,11 @@ control in Contiki processes
 [More info](https://github.com/contiki-os/contiki/wiki/Processes)
 
 ---
-## Event driven
-
-* Event-driven vs multithreaded
-    * Event-driven requires less memory
-    * Multithreading requires per-thread stacks
-
----
-## Timers
-[More info](https://github.com/contiki-os/contiki/wiki/Timers)
-
----
 ## Hello World
 
 ```
 /* Declare the process */
-PROCESS(hello_world_process, “Hello world”);
+PROCESS(hello_world_process, "Hello world");
 /* Make the process start when the module is loaded */
 AUTOSTART_PROCESSES(&hello_world);
 
@@ -269,7 +272,7 @@ AUTOSTART_PROCESSES(&hello_world);
 PROCESS_THREAD(hello_world_process, ev, data) {
     PROCESS_BEGIN(); /* Must always come first */
     
-    printf(“Hello, world!\n”); /* Initialization code goes here *
+    printf("Hello, world!\n"); /* Initialization code goes here */
     while(1) { /* Loop for ever */
         PROCESS_WAIT_EVENT(); /* Wait for something to happen */
     }
@@ -277,8 +280,308 @@ PROCESS_THREAD(hello_world_process, ev, data) {
     PROCESS_END(); /* Must always come last */
 }
 ```
+
 ---
-## More slides I
+## Processes API
+
+```
+PROCESS_BEGIN();            // Declares the beginning of a process' protothread.
+
+PROCESS_END();              // Declares the end of a process' protothread. 
+
+PROCESS_EXIT();             // Exit the process. 
+
+PROCESS_WAIT_EVENT();       // Wait for any event. 
+
+PROCESS_WAIT_EVENT_UNTIL(); // Wait for an event, but with a condition.
+
+PROCESS_YIELD();            // Wait for any event, equivalent to PROCESS_WAIT_EVENT().
+
+PROCESS_WAIT_UNTIL();       // Wait for a given condition; may not yield the process.
+
+PROCESS_PAUSE();            // Temporarily yield the process.
+```
+---
+## Sending events to processes
+
+```
+static char msg[] = "Data";
+ 
+ static void
+ example_function(void)
+ {
+   /* Start "Example process", and send it a NULL
+      pointer. */
+ 
+   process_start(&example_process, NULL);
+  
+   /* Send the PROCESS_EVENT_MSG event synchronously to
+      "Example process", with a pointer to the message in the
+      array 'msg'. */
+   process_post_synch(&example_process,
+                      PROCESS_EVENT_CONTINUE, msg);
+   /* Send the PROCESS_EVENT_MSG event asynchronously to 
+      "Example process", with a pointer to the message in the
+      array 'msg'. */
+   process_post(&example_process,
+                PROCESS_EVENT_CONTINUE, msg);
+ 
+   /* Poll "Example process". */
+   process_poll(&example_process);
+ }
+
+```
+---
+## Event driven
+
+![](events-1.svg)
+
+---
+## Event driven
+
+![](events-2.gif)
+
+---
+## Event-driven vs multithreaded
+
+![](mem-1thread.gif) 
+
+![](mem-2threads.jpg) <!-- .element: class="fragment" -->
+
+* Multithreading requires per-thread stacks <!-- .element: class="fragment" -->
+* Event-driven requires less memory <!-- .element: class="fragment" -->
+
+---
+## Why not to use threads
+
+* Threads require stack memory
+    * Unused stack space wastes memory
+    * 200 bytes out of 2048 bytes is a lot!
+* A multi-threading library quite difficult to port
+    * Requires use of assembly language
+    * Hardware specific
+    * Platform specific
+    * Compiler specific
+
+---
+### Protothreads: 
+#### A new programming abstraction
+* A design point between events and threads
+* Programming primitive: conditional blocking wait
+```
+PT_WAIT_UNTIL(condition)
+```
+* Single stack
+    * Low memory usage, just like events
+* Sequential flow of control
+    * No explicit state machine, just like threads
+    * Programming language helps us: if and while
+
+---
+### Protothread example
+
+```
+int a_protothread(struct pt *pt) {
+    PT_BEGIN(pt);
+    ...
+    PT_WAIT_UNTIL(pt, condition1);
+    ...
+    if(something) {
+        PT_WAIT_UNTIL(pt, condition2);
+        ...
+    }
+    ...
+    PT_END(pt);
+}
+```
+---
+### Protothread limitations
+
+* Automatic variables not stored across a blocking
+wait
+
+    ``` 
+    void f(struct pt *pt) {
+        int a=1;
+        ...
+        PT_WAIT_UNTIL(pt, condition);
+        printf("%d\n",a);
+        ...
+    }
+    ```
+   
+    * Compiler does produce a warning
+    * Workaround: use static local variables instead
+
+    ``` 
+    void f() {
+        static int a=1;
+        ...
+        PT_WAIT_UNTIL(pt, condition);
+        printf("%d\n",a);
+        ...
+    }
+    ```
+
+* Constraints on the use of switch() constructs in
+programs
+    * No warning produced by the compiler
+    * Workaround: don’t use switches
+---
+## Timers
+* struct timer
+    * Passive timer, only keeps track of its expiration time
+    
+* struct etimer
+    * Active timer, sends an event when it expires
+
+* struct ctimer
+    * Active timer, calls a function when it expires
+    * Used by Rime
+
+* struct rtimer
+    * Real-time timer, calls a function at an exact time
+
+[More info](https://github.com/contiki-os/contiki/wiki/Timers)
+
+[And still more](http://anrg.usc.edu/contiki/index.php/Timers)
+
+---
+## Etimer
+
+```
+PROCESS_THREAD(hello_world_process, ev, data) {
+    static struct etimer et; /* Must be static */
+    PROCESS_BEGIN();    /* since processes are */
+                        /* protothreads */
+    while(1) {
+        /* Using a struct timer would not work, since
+        the process would not be invoked when it expires. */
+        etimer_set(&et, CLOCK_SECOND);
+        
+        PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et));
+        
+        /* One second has passed :) */
+    }
+    
+    PROCESS_END();
+}
+```
+---
+## Networking
+
+RIME vs IP
+
+---
+## RIME
+
+* A set of communication abstractions (in increasing complexity):
+    * Single-hop broadcast (broadcast)
+    * Single-hop unicast (unicast)
+    * Reliable single-hop unicast (runicast)
+    * Best-effort multi-hop unicast (multihop)
+    * Hop-by-hop reliable multi-hop unicast (rmh)
+    * Best-effort multi-hop flooding (netflood)
+    * Reliable multi-hop flooding (trickle)
+
+---
+## RIME
+
+* A set of communication abstractions (continued)
+    * Hop-by-hop reliable data collection tree routing (collect)
+    * Hop-by-hop reliable mesh routing (mesh)
+    * Best-effort route discovery (route-disovery) 
+    * Single-hop reliable bulk transfer (rudolph0)
+    * Multi-hop reliable bulk transfer (rudolph1)
+
+---
+## RIME
+
+![](rime.png)
+
+---
+## RIME: Detailed primitives
+
+* <u>abc:</u> the anonymous broadcast, it justs sends a packet via the radio driver, receives all packet from the radio driver and passes them to the upper layer;
+
+* <u>broadcast:</u> the identified broadcast, it adds the sender address to the outgoing packet and passes it to the abc module;
+
+* <u>unicast:</u> this module adds a destination address to the packets passed to the broadcast block. On the receive side, if the packet's destination address doesn't match the node's address, the packet is discarded;
+
+---
+## RIME: Detailed primitives
+* <u>stunicast:</u> the stubborn unicast, when asked to send a packet to a node, it sends it repeatedly with a given time period until asked to stop. This module is usually not used as is, but is used by the next one;
+
+* <u>runicast:</u> the reliable unicast, it sends a packet using the stunicast module waiting for an acknowledgment packet. When it is received it stops the continuous transmission of the packet. A maximum retransmission number must be specified, in order to avoid infinite sending;
+
+
+---
+## RIME: Detailed primitives
+
+* <u>polite and ipolite:</u> these two modules are almost identical, when a packet has to be sent in a given time frame, the module waits for half of the time, checking if it has received the same packet it's about to send. If it has, the packet is not sent, otherwise it sends the packet. This is useful for flooding techniques to avoid unnecessary retransmissions;
+
+* <u>multihop:</u> this module requires a route table function, and when about to send a packet it asks the route table for the next hop and sends the packet to it using unicast. When it receives a packet, if the node is the destination then the packet is passed to the upper layer, otherwise it asks again the route table for the next hop and relays the packet to it;
+
+---
+## RIME Channels
+
+* All communication in Rime is identified by a 16-bit channel
+    * Communicating nodes must agree on what modules to use on a certain channel
+        * Unicast on channel 155
+        * Netflood on channel 130
+    * Channel numbers < 128 are reserved by the system. Used by the shell, other system apps
+
+---
+#### Example 1. Send to Neighbours
+
+```
+void recv(struct broadcast_conn *c) {
+    printf("Message received %s\n", (char*)packetbuf_dataptr());
+￼}
+```
+
+```
+struct broadcast_callbacks cb = {recv}; /* Callback */
+struct broadcast_conn c; /* Connection */
+```
+
+```
+void setup_sending_a_message_to_all_neighbors(void) {
+    broadcast_open(&c, 128, &cb); /* Channel 128 */ 
+}
+```
+```
+void send_message_to_neighbours(char* msg, int len) {
+    packetbuf_copyfrom(msg, len); /* Copy data to buffer */
+    broadcast_send(&c);
+}
+```
+---
+#### Example 2. Send message to entire network￼￼
+```
+void recv(struct trickle_conn *c) { /* callback */
+    printf(“Message received, length = %d\n", databuf_datalen());  
+}
+```
+```
+struct trickle_callbacks cb = {recv}; /* Callbacks */
+struct trickle_conn c; /* Connection */
+```
+```
+void setup_sending_a_message_to_network(void) {
+    trickle_open(&c, CLOCK_SECOND, 129, &cb); /* Channel 129 */
+}
+```
+```
+void send_message_to_network(char *msg, int len) {
+    packetbuf_copyfrom(msg, len); /* Setup rimebuf */
+    trickle_send(&c);
+}
+```
+---
+## Additional Information I
+
+[Good tutorials](http://anrg.usc.edu/contiki/index.php/Main_Page)
 
 Building the Internet of Things
 
@@ -295,7 +598,7 @@ Building the Internet of Things
 [Day 2 part 3](http://www.slideshare.net/ADunkels/building-day-2-upload-building-the-internet-of-things-with-thingsquare-and-contiki-day-2-part-3)
 
 ---
-## More slides II
+## Additional Information II
 
 Advanced IoT Firmware Engineering
 
