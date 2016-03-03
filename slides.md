@@ -441,6 +441,7 @@ programs
 
 * struct rtimer
     * Real-time timer, calls a function at an exact time
+    * Be careful ***only 1 rtimer per mote will work!***
 
 [More info](https://github.com/contiki-os/contiki/wiki/Timers)
 
