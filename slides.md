@@ -431,7 +431,7 @@ programs
 ## Timers
 * struct timer
     * Passive timer, only keeps track of its expiration time
-    
+
 * struct etimer
     * Active timer, sends an event when it expires
 
@@ -530,7 +530,7 @@ RIME vs IP
     * Communicating nodes must agree on what modules to use on a certain channel
         * Unicast on channel 155
         * Netflood on channel 130
-    * Channel numbers < 128 are reserved by the system. Used by the shell, other system apps
+    * Channel numbers lower than 128 are reserved by the system. Used by the shell, other system apps
 
 ---
 #### Example 1. Send to Neighbours
@@ -538,7 +538,7 @@ RIME vs IP
 ```
 void recv(struct broadcast_conn *c) {
     printf("Message received %s\n", (char*)packetbuf_dataptr());
-￼}
+}
 ```
 
 ```
@@ -551,34 +551,41 @@ void setup_sending_a_message_to_all_neighbors(void) {
     broadcast_open(&c, 128, &cb); /* Channel 128 */ 
 }
 ```
+
 ```
 void send_message_to_neighbours(char* msg, int len) {
     packetbuf_copyfrom(msg, len); /* Copy data to buffer */
     broadcast_send(&c);
 }
 ```
+
 ---
 #### Example 2. Send message to entire network￼￼
+
 ```
 void recv(struct trickle_conn *c) { /* callback */
     printf(“Message received, length = %d\n", databuf_datalen());  
 }
 ```
+
 ```
 struct trickle_callbacks cb = {recv}; /* Callbacks */
 struct trickle_conn c; /* Connection */
 ```
+
 ```
 void setup_sending_a_message_to_network(void) {
     trickle_open(&c, CLOCK_SECOND, 129, &cb); /* Channel 129 */
 }
 ```
+
 ```
 void send_message_to_network(char *msg, int len) {
     packetbuf_copyfrom(msg, len); /* Setup rimebuf */
     trickle_send(&c);
 }
 ```
+
 ---
 ## Additional Information I
 
