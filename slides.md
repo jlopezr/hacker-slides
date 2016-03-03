@@ -314,12 +314,15 @@ static char msg[] = "Data";
       pointer. */
  
    process_start(&example_process, NULL);
-  
+```
+```  
    /* Send the PROCESS_EVENT_MSG event synchronously to
       "Example process", with a pointer to the message in the
       array 'msg'. */
    process_post_synch(&example_process,
                       PROCESS_EVENT_CONTINUE, msg);
+```
+```
    /* Send the PROCESS_EVENT_MSG event asynchronously to 
       "Example process", with a pointer to the message in the
       array 'msg'. */
